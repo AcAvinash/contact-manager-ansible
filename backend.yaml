@@ -64,6 +64,11 @@
       ignore_errors: yes
       become_user: "{{ app_user }}"
 
+    - name: Check if dist/index.js exists
+      stat:
+        path: "{{ app_dir }}/dist/index.js"
+      register: dist_file
+
     - name: Start or restart backend using PM2
       shell: |
         pm2 describe backend > /dev/null 2>&1
@@ -75,5 +80,7 @@
       args:
         chdir: "{{ app_dir }}"
       become_user: "{{ app_user }}"
+      when: dist_file.stat.exists
+
 
 
