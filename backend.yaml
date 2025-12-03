@@ -29,6 +29,14 @@
         name: nodejs
         state: present
 
+    # 0️⃣ Install PM2 globally
+    - name: Install PM2 globally
+      npm:
+        name: pm2
+        global: yes
+        state: present
+      become_user: "{{ app_user }}"
+
     # 1️⃣ Ensure app user exists
     - name: Check if app user exists
       command: id {{ app_user }}
@@ -98,3 +106,4 @@
       args:
         chdir: "{{ app_dir }}"
       become_user: "{{ app_user }}"
+
