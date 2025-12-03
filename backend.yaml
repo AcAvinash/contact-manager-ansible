@@ -31,8 +31,6 @@
     # 0️⃣ Install Node.js 18 and npm
     - name: Add NodeSource repo for Node.js 18
       shell: curl -fsSL https://rpm.nodesource.com/setup_18.x | bash -
-      args:
-        warn: false
 
     - name: Install Node.js and npm
       package:
@@ -111,5 +109,3 @@
       args:
         chdir: "{{ app_dir }}"
       become_user: "{{ app_user }}"
-
-
