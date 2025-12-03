@@ -20,11 +20,9 @@
         name: git
         state: present
 
-    # 0️⃣ Ensure Node.js and npm are installed (Amazon Linux/RHEL/CentOS)
-    - name: Add NodeSource repo for Node.js 18 (Amazon Linux)
+    # 0️⃣ Ensure Node.js and npm are installed (Amazon Linux / RHEL)
+    - name: Add NodeSource repo for Node.js 18
       shell: curl -fsSL https://rpm.nodesource.com/setup_18.x | bash -
-      args:
-        warn: false
 
     - name: Install Node.js and npm
       package:
