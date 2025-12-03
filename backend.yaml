@@ -5,7 +5,7 @@
   vars:
     app_user: roboshop
     app_dir: /app
-    local_backend_path: ../home/ec2-user/Contact-Manager/backend
+    local_backend_path: /home/ec2-user/Contact-Manager/backend
 
   tasks:
 
@@ -15,7 +15,6 @@
         shell: /bin/bash
         create_home: yes
 
-    
     - name: Add NodeSource repo for Node.js 18
       shell: curl -fsSL https://rpm.nodesource.com/setup_18.x | bash -
 
@@ -43,9 +42,14 @@
         group: "{{ app_user }}"
         recurse: yes
 
-    - name: Copy backend code from local path to /app
-      command: rsync -a --delete {{ local_backend_path }}/ {{ app_dir }}/
-      become: true
+    - name: Copy backend code to server
+      copy:
+        src: /home/ec2-user/Contact-Manager/backend/
+        dest: /app/
+        owner: roboshop
+        group: roboshop
+        mode: 0755
+      delegate_to: localhost
 
     - name: Install npm dependencies
       command: npm install
@@ -75,7 +79,3 @@
       args:
         chdir: "{{ app_dir }}"
       become_user: "{{ app_user }}"
-
-
-
-
