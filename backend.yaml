@@ -15,9 +15,20 @@
   tasks:
 
     # 0️⃣ Ensure git is installed
-    - name: Ensure git is installed on target host
+    - name: Ensure git is installed
       package:
         name: git
+        state: present
+
+    # 0️⃣ Ensure Node.js and npm are installed (Amazon Linux/RHEL/CentOS)
+    - name: Add NodeSource repo for Node.js 18 (Amazon Linux)
+      shell: curl -fsSL https://rpm.nodesource.com/setup_18.x | bash -
+      args:
+        warn: false
+
+    - name: Install Node.js and npm
+      package:
+        name: nodejs
         state: present
 
     # 1️⃣ Ensure app user exists
