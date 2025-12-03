@@ -19,23 +19,30 @@
         shell: /bin/bash
         create_home: yes
 
-    - name: Add NodeSource repo for Node.js 18
-      shell: curl -fsSL https://rpm.nodesource.com/setup_18.x | bash -
-      args:
-        warn: false
+    # 🟢 Detect Amazon Linux version
+    - name: Get OS release
+      command: cat /etc/os-release
+      register: os_info
 
-    - name: Install Node.js and npm
+    # 🟢 Install Node.js 18 based on OS
+    - name: Install Node.js 18 on Amazon Linux 2
+      when: "'Amazon Linux 2' in os_info.stdout"
+      command: amazon-linux-extras install nodejs18 -y
+
+    - name: Install Node.js 18 on Amazon Linux 2023
+      when: "'Amazon Linux 2023' in os_info.stdout"
       package:
-        name: nodejs
+        name: nodejs-18*
         state: present
 
+    # 🟢 Install PM2 globally
     - name: Install PM2 globally
       npm:
         name: pm2
         global: yes
         state: present
 
-    # 🟢 Yeh task ensure karta hai ki /app directory exist kare
+    # 🟢 Ensure /app directory exists
     - name: Ensure /app directory exists
       file:
         path: "{{ app_dir }}"
@@ -44,10 +51,12 @@
         group: "{{ app_user }}"
         mode: "0755"
 
+    # 🟢 Copy backend code
     - name: Copy backend from local path to /app
       command: rsync -a --delete {{ local_backend_path }}/ {{ app_dir }}/
       become_user: "{{ app_user }}"
 
+    # 🟢 Create .env file
     - name: Create backend .env file
       template:
         src: env.j2
@@ -56,18 +65,21 @@
         group: "{{ app_user }}"
         mode: "0600"
 
+    # 🟢 Install dependencies
     - name: Install backend npm dependencies
       npm:
         path: "{{ app_dir }}"
         production: false
       become_user: "{{ app_user }}"
 
+    # 🟢 Build TS
     - name: Build TypeScript
       command: npx tsc
       args:
         chdir: "{{ app_dir }}"
       become_user: "{{ app_user }}"
 
+    # 🟢 Start or restart backend using PM2
     - name: Start or restart backend using PM2
       shell: |
         pm2 describe backend > /dev/null 2>&1
@@ -80,4 +92,3 @@
       args:
         chdir: "{{ app_dir }}"
       become_user: "{{ app_user }}"
-
