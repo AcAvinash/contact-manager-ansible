@@ -1,4 +1,4 @@
-- name: Deploy backend (TypeScript)
+- name: Deploy backend
   hosts: backend
   become: true
 
@@ -9,14 +9,15 @@
 
   tasks:
 
-    - name: Copy backend code
+    - name: Copy backend code from app folder
       copy:
-        src: backend/app/
+        src: app/
         dest: /var/www/backend/
+        mode: "0755"
 
     - name: Create .env file
       template:
-        src: backend/templates/env.j2
+        src: env.j2
         dest: /var/www/backend/.env
         mode: "0600"
 
@@ -25,14 +26,19 @@
       args:
         chdir: /var/www/backend/
 
-    - name: Build TypeScript
+    - name: Build TypeScript (if TS project)
       command: npx tsc
       args:
         chdir: /var/www/backend/
+      ignore_errors: yes   # JS backend ho to tsc error ignore
 
-    - name: Start PM2 with compiled JS
-      command: pm2 restart backend || pm2 start dist/index.js --name backend
+    - name: Start backend using PM2
+      command: >
+        pm2 restart backend ||
+        pm2 start dist/index.js --name backend ||
+        pm2 start index.js --name backend
       args:
         chdir: /var/www/backend/
+
 
 
