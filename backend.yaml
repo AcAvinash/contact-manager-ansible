@@ -66,16 +66,13 @@
 
     - name: Start or restart backend using PM2
       shell: |
-        if [ -f dist/index.js ]; then
-            pm2 describe backend > /dev/null 2>&1
-            if [ $? -eq 0 ]; then
-                pm2 restart backend --update-env
-            else
-                pm2 start dist/index.js --name backend
-            fi
+        pm2 describe backend > /dev/null 2>&1
+        if [ $? -eq 0 ]; then
+            pm2 restart backend --update-env
         else
-            echo "Error: dist/index.js not found, cannot start backend"
-            exit 1
+            pm2 start dist/index.js --name backend
+        fi
       args:
         chdir: "{{ app_dir }}"
       become_user: "{{ app_user }}"
+
