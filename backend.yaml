@@ -29,13 +29,12 @@
         name: nodejs
         state: present
 
-    # 0️⃣ Install PM2 globally
+    # 0️⃣ Install PM2 globally as root (fix EACCES)
     - name: Install PM2 globally
       npm:
         name: pm2
         global: yes
         state: present
-      become_user: "{{ app_user }}"
 
     # 1️⃣ Ensure app user exists
     - name: Check if app user exists
@@ -106,4 +105,5 @@
       args:
         chdir: "{{ app_dir }}"
       become_user: "{{ app_user }}"
+
 
