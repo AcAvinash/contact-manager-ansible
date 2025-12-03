@@ -9,32 +9,38 @@
 
   tasks:
 
+    # 1️⃣ Ensure roboshop user exists
     - name: Ensure roboshop user exists
       user:
         name: "{{ app_user }}"
         shell: /bin/bash
         create_home: yes
 
+    # 2️⃣ Add NodeSource repo for Node.js 18
     - name: Add NodeSource repo for Node.js 18
       shell: curl -fsSL https://rpm.nodesource.com/setup_18.x | bash -
-
+    
+    # 3️⃣ Install Node.js and npm
     - name: Install Node.js and npm
       package:
         name: nodejs
         state: present
 
+    # 4️⃣ Install PM2 globally
     - name: Install PM2 globally
       npm:
         name: pm2
         global: yes
         state: present
 
+    # 5️⃣ Ensure /app directory exists
     - name: Ensure /app directory exists
       file:
         path: "{{ app_dir }}"
         state: directory
         mode: '0755'
 
+    # 6️⃣ Set ownership of /app directory
     - name: Set ownership of /app directory
       file:
         path: "{{ app_dir }}"
@@ -42,39 +48,45 @@
         group: "{{ app_user }}"
         recurse: yes
 
+    # 7️⃣ Copy backend code to server
     - name: Copy backend code to server
       copy:
-        src: /home/ec2-user/Contact-Manager/backend/
-        dest: /app/
+        src: "{{ local_backend_path }}/"
+        dest: "{{ app_dir }}/"
         owner: "{{ app_user }}"
         group: "{{ app_user }}"
         mode: 0755
       become: true
 
+    # 8️⃣ Install npm dependencies
     - name: Install npm dependencies
       command: npm install
       args:
         chdir: "{{ app_dir }}"
       become_user: "{{ app_user }}"
 
-    - name: Install TypeScript locally
+    # 9️⃣ Ensure TypeScript is installed locally
+    - name: Ensure TypeScript is installed locally
       npm:
         name: typescript
         path: "{{ app_dir }}"
         state: present
       become_user: "{{ app_user }}"
 
-    - name: Compile TypeScript
+    # 🔟 Build TypeScript to generate server.js
+    - name: Build TypeScript
       command: npx tsc
       args:
         chdir: "{{ app_dir }}"
       become_user: "{{ app_user }}"
 
+    # 1️⃣1️⃣ Check if compiled server.js exists
     - name: Check if server.js exists
       stat:
         path: "{{ app_dir }}/server.js"
-      register: server_file_js
+      register: server_js_file
 
+    # 1️⃣2️⃣ Start or restart backend using PM2
     - name: Start or restart backend using PM2
       shell: |
         pm2 describe backend > /dev/null 2>&1
@@ -86,4 +98,5 @@
       args:
         chdir: "{{ app_dir }}"
       become_user: "{{ app_user }}"
-      when: server_file_js.stat.exists
+      when: server_js_file.stat.exists
+
