@@ -1,100 +1,84 @@
----
-- name: Deploy Backend App on Amazon Linux 2023
+- name: Deploy backend from local folder
   hosts: backend
   become: true
 
   vars:
-    backend_src_path: "/home/ec2-user/Contact-Manager/backend"
-    app_dir: "/app"
+    app_user: roboshop
+    app_dir: /app
+    local_backend_path: /home/ec2-user/Contact-Manager/backend
 
   tasks:
 
-    # ---------------------------
-    # Create /app directory
-    # ---------------------------
-    - name: Ensure /app directory exists
-      file:
-        path: "{{ app_dir }}"
-        state: directory
-        owner: ec2-user
-        group: ec2-user
-        mode: "0755"
+    - name: Ensure roboshop user exists
+      user:
+        name: "{{ app_user }}"
+        shell: /bin/bash
+        create_home: yes
 
-    # ---------------------------
-    # Install Prereqs for NodeSource
-    # ---------------------------
-    - name: Install dependencies
-      package:
-        name:
-          - gcc-c++
-          - make
-          - openssl-devel
-          - curl
-        state: present
-
-    # ---------------------------
-    # Add NodeSource repo for Node.js 18 (AL2023 compatible)
-    # ---------------------------
+    
     - name: Add NodeSource repo for Node.js 18
-      shell: |
-        curl -fsSL https://rpm.nodesource.com/setup_18.x -o nodesource_setup.sh
-        bash nodesource_setup.sh
-      args:
-        chdir: /tmp
+      shell: curl -fsSL https://rpm.nodesource.com/setup_18.x | bash -
 
-    # ---------------------------
-    # Install Node.js 18
-    # ---------------------------
-    - name: Install Node.js 18
+    - name: Install Node.js and npm
       package:
         name: nodejs
         state: present
 
-    # ---------------------------
-    # Install PM2 globally
-    # ---------------------------
-    - name: Install PM2
+    - name: Install PM2 globally
       npm:
         name: pm2
-        global: true
-        executable: /usr/bin/npm
-
-    # ---------------------------
-    # Copy backend code to /app
-    # ---------------------------
-    - name: Copy backend code using rsync
-      command: rsync -a --delete {{ backend_src_path }}/ {{ app_dir }}/
-
-    # ---------------------------
-    # Install project dependencies
-    # ---------------------------
-    - name: Install npm dependencies
-      npm:
-        path: "{{ app_dir }}"
+        global: yes
         state: present
-        production: false
-        executable: /usr/bin/npm
 
-    # ---------------------------
-    # Stop existing pm2 service
-    # ---------------------------
-    - name: Stop old PM2 app if exists
-      command: pm2 stop backend
-      ignore_errors: true
+    - name: Ensure /app directory exists
+      file:
+        path: "{{ app_dir }}"
+        state: directory
+        mode: '0755'
 
-    # ---------------------------
-    # Start backend with PM2
-    # ---------------------------
-    - name: Start backend using PM2
-      shell: pm2 start server.js --name backend
+    - name: Set ownership of /app directory
+      file:
+        path: "{{ app_dir }}"
+        owner: "{{ app_user }}"
+        group: "{{ app_user }}"
+        recurse: yes
+
+    - name: Copy backend code from local to /app
+      synchronize:
+        src: "{{ local_backend_path }}/"
+        dest: "{{ app_dir }}/"
+        delete: yes
+      delegate_to: localhost
+
+    - name: Install npm dependencies
+      command: npm install
       args:
         chdir: "{{ app_dir }}"
+      become_user: "{{ app_user }}"
 
-    - name: Save PM2 process list
-      command: pm2 save
+    - name: Build TypeScript
+      command: npx tsc
+      args:
+        chdir: "{{ app_dir }}"
+      ignore_errors: yes
+      become_user: "{{ app_user }}"
 
-    - name: Enable PM2 startup
-      command: pm2 startup systemd -u ec2-user --hp /home/ec2-user
+    - name: Start or restart backend using PM2
+      shell: |
+        if [ -f dist/index.js ]; then
+            pm2 describe backend > /dev/null 2>&1
+            if [ $? -eq 0 ]; then
+                pm2 restart backend --update-env
+            else
+                pm2 start dist/index.js --name backend
+            fi
+        else
+            echo "Error: dist/index.js not found, cannot start backend"
+            exit 1
+      args:
+        chdir: "{{ app_dir }}"
+      become_user: "{{ app_user }}"
+
 
 
 
