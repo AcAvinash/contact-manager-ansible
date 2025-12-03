@@ -46,10 +46,10 @@
       copy:
         src: /home/ec2-user/Contact-Manager/backend/
         dest: /app/
-        owner: roboshop
-        group: roboshop
+        owner: "{{ app_user }}"
+        group: "{{ app_user }}"
         mode: 0755
-      delegate_to: localhost
+      become: true
 
     - name: Install npm dependencies
       command: npm install
