@@ -43,12 +43,9 @@
         group: "{{ app_user }}"
         recurse: yes
 
-    - name: Copy backend code from local to /app
-      synchronize:
-        src: "{{ local_backend_path }}/"
-        dest: "{{ app_dir }}/"
-        delete: yes
-      delegate_to: localhost
+    - name: Copy backend code from local path to /app
+      command: rsync -a --delete {{ local_backend_path }}/ {{ app_dir }}/
+      become: true
 
     - name: Install npm dependencies
       command: npm install
