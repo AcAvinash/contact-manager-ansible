@@ -1,85 +1,53 @@
-- name: Deploy Local Backend Code Safely
+---
+- name: Deploy Backend App
   hosts: backend
   become: true
-
   vars:
-    app_user: roboshop
-    local_backend_path: "/home/ec2-user/Contact-Manager/backend"
-    app_dir: /app
-
-    jwt_secret_key: "{{ lookup('env', 'JWT_SECRET_KEY') }}"
-    mongo_cloud_url: "{{ lookup('env', 'MONGO_DB_CLOUD_URL') }}"
-    mongo_database: "{{ lookup('env', 'MONGO_DB_DATABASE') }}"
+    backend_src_path: "/home/ec2-user/Contact-Manager/backend"
+    app_dir: "/app"
 
   tasks:
 
-    - name: Ensure roboshop user exists
-      user:
-        name: "{{ app_user }}"
-        shell: /bin/bash
-        create_home: yes
-
-    # 🟢 Amazon Linux 2023 Node.js installation
-    - name: Install Node.js 18 on AL2023
-      package:
-        name: nodejs-18*
-        state: present
-
-    # 🟢 Install PM2 globally
-    - name: Install PM2 globally
-      npm:
-        name: pm2
-        global: yes
-        state: present
-
-    # 🟢 Ensure /app directory exists
-    - name: Ensure /app directory exists
+    - name: Create /app directory
       file:
         path: "{{ app_dir }}"
         state: directory
-        owner: "{{ app_user }}"
-        group: "{{ app_user }}"
-        mode: "0755"
+        owner: ec2-user
+        group: ec2-user
+        mode: '0755'
 
-    # 🟢 Copy backend code
-    - name: Copy backend from local path to /app
-      command: rsync -a --delete {{ local_backend_path }}/ {{ app_dir }}/
-      become_user: "{{ app_user }}"
+    - name: Install Node.js 18 on AL2023
+      command: dnf install -y nodejs18
 
-    # 🟢 Create .env file
-    - name: Create backend .env file
-      template:
-        src: env.j2
-        dest: "{{ app_dir }}/.env"
-        owner: "{{ app_user }}"
-        group: "{{ app_user }}"
-        mode: "0600"
+    - name: Install PM2 globally
+      npm:
+        name: pm2
+        global: true
+        executable: /usr/bin/npm
 
-    # 🟢 Install dependencies
-    - name: Install backend npm dependencies
+    - name: Copy backend to /app
+      command: rsync -a --delete {{ backend_src_path }}/ {{ app_dir }}/
+
+    - name: Install backend dependencies
       npm:
         path: "{{ app_dir }}"
+        state: present
         production: false
-      become_user: "{{ app_user }}"
+        executable: /usr/bin/npm
 
-    # 🟢 Build TypeScript
-    - name: Build TypeScript
-      command: npx tsc
+    - name: Stop existing PM2 process (ignore errors)
+      command: pm2 stop backend
+      ignore_errors: true
+
+    - name: Start backend with PM2
+      command: pm2 start server.js --name backend
       args:
         chdir: "{{ app_dir }}"
-      become_user: "{{ app_user }}"
 
-    # 🟢 Start or restart backend using PM2
-    - name: Start or restart backend using PM2
-      shell: |
-        pm2 describe backend > /dev/null 2>&1
-        if [ $? -eq 0 ]; then
-            pm2 restart backend --update-env
-        else
-            pm2 start dist/index.js --name backend
-        fi
-        pm2 save
-      args:
-        chdir: "{{ app_dir }}"
-      become_user: "{{ app_user }}"
+    - name: Save PM2 process list
+      command: pm2 save
+
+    - name: Enable PM2 startup script
+      command: pm2 startup systemd -u ec2-user --hp /home/ec2-user
+
 
