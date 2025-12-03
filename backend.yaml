@@ -19,18 +19,8 @@
         shell: /bin/bash
         create_home: yes
 
-    # 🟢 Detect Amazon Linux version
-    - name: Get OS release
-      command: cat /etc/os-release
-      register: os_info
-
-    # 🟢 Install Node.js 18 based on OS
-    - name: Install Node.js 18 on Amazon Linux 2
-      when: "'Amazon Linux 2' in os_info.stdout"
-      command: amazon-linux-extras install nodejs18 -y
-
-    - name: Install Node.js 18 on Amazon Linux 2023
-      when: "'Amazon Linux 2023' in os_info.stdout"
+    # 🟢 Amazon Linux 2023 Node.js installation
+    - name: Install Node.js 18 on AL2023
       package:
         name: nodejs-18*
         state: present
@@ -72,7 +62,7 @@
         production: false
       become_user: "{{ app_user }}"
 
-    # 🟢 Build TS
+    # 🟢 Build TypeScript
     - name: Build TypeScript
       command: npx tsc
       args:
@@ -92,3 +82,4 @@
       args:
         chdir: "{{ app_dir }}"
       become_user: "{{ app_user }}"
+
