@@ -1,74 +1,53 @@
-- name: Deploy backend safely from GitHub
+- name: Deploy Local Backend Code Safely
   hosts: backend
   become: true
 
   vars:
     app_user: roboshop
-    repo_url: "https://github.com/AlankarSingh27/Contact-Manager.git"
-    repo_branch: "main"
-    tmp_clone_parent: /tmp                 # git clone parent
-    tmp_repo_dir: "/tmp/Contact-Manager"   # full repo folder after clone
-    app_dir: /app                           # final deploy folder
+    local_backend_path: "/home/ec2-user/Contact-Manager/backend"
+    app_dir: /app
+
     jwt_secret_key: "{{ lookup('env', 'JWT_SECRET_KEY') }}"
     mongo_cloud_url: "{{ lookup('env', 'MONGO_DB_CLOUD_URL') }}"
     mongo_database: "{{ lookup('env', 'MONGO_DB_DATABASE') }}"
 
   tasks:
 
-    # 0️⃣ Ensure roboshop user exists
     - name: Ensure roboshop user exists
       user:
         name: "{{ app_user }}"
         shell: /bin/bash
         create_home: yes
 
-    # 0️⃣ Ensure git is installed
-    - name: Ensure git is installed
-      package:
-        name: git
-        state: present
-
-    # 0️⃣ Install Node.js 18 and npm
     - name: Add NodeSource repo for Node.js 18
       shell: curl -fsSL https://rpm.nodesource.com/setup_18.x | bash -
+      args:
+        warn: false
 
     - name: Install Node.js and npm
       package:
         name: nodejs
         state: present
 
-    # 0️⃣ Install PM2 globally
     - name: Install PM2 globally
       npm:
         name: pm2
         global: yes
         state: present
 
-    # 1️⃣ Clone GitHub repo into /tmp
-    - name: Clone GitHub repo into /tmp
-      git:
-        repo: "{{ repo_url }}"
-        dest: "{{ tmp_repo_dir }}"
-        version: "{{ repo_branch }}"
-        force: yes
-      become_user: "{{ app_user }}"
-
-    # 2️⃣ Ensure /app directory exists
+    # 🟢 Yeh task ensure karta hai ki /app directory exist kare
     - name: Ensure /app directory exists
       file:
         path: "{{ app_dir }}"
         state: directory
         owner: "{{ app_user }}"
         group: "{{ app_user }}"
-        mode: '0755'
+        mode: "0755"
 
-    # 3️⃣ Copy backend folder content from repo to /app
-    - name: Copy backend folder content from /tmp/Contact-Manager/backend to /app
-      command: >
-        rsync -a --delete {{ tmp_repo_dir }}/backend/ {{ app_dir }}/
+    - name: Copy backend from local path to /app
+      command: rsync -a --delete {{ local_backend_path }}/ {{ app_dir }}/
       become_user: "{{ app_user }}"
 
-    # 4️⃣ Create backend .env file
     - name: Create backend .env file
       template:
         src: env.j2
@@ -77,35 +56,28 @@
         group: "{{ app_user }}"
         mode: "0600"
 
-    # 5️⃣ Install npm dependencies
     - name: Install backend npm dependencies
-      command: npm install
-      args:
-        chdir: "{{ app_dir }}"
+      npm:
+        path: "{{ app_dir }}"
+        production: false
       become_user: "{{ app_user }}"
 
-    # 6️⃣ Build TypeScript (optional)
     - name: Build TypeScript
       command: npx tsc
       args:
         chdir: "{{ app_dir }}"
-      ignore_errors: yes
       become_user: "{{ app_user }}"
 
-    # 7️⃣ Start or restart backend using PM2 (robust)
     - name: Start or restart backend using PM2
       shell: |
-        if [ -f dist/index.js ]; then
-            pm2 describe backend > /dev/null 2>&1
-            if [ $? -eq 0 ]; then
-                pm2 restart backend --update-env
-            else
-                pm2 start dist/index.js --name backend
-            fi
+        pm2 describe backend > /dev/null 2>&1
+        if [ $? -eq 0 ]; then
+            pm2 restart backend --update-env
         else
-            echo "Error: dist/index.js not found, cannot start backend"
-            exit 1
+            pm2 start dist/index.js --name backend
         fi
+        pm2 save
       args:
         chdir: "{{ app_dir }}"
       become_user: "{{ app_user }}"
+
