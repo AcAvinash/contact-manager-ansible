@@ -20,7 +20,7 @@
         name: git
         state: present
 
-    # 0️⃣ Ensure Node.js and npm are installed (Amazon Linux / RHEL)
+    # 0️⃣ Ensure Node.js and npm are installed
     - name: Add NodeSource repo for Node.js 18
       shell: curl -fsSL https://rpm.nodesource.com/setup_18.x | bash -
 
@@ -29,7 +29,7 @@
         name: nodejs
         state: present
 
-    # 0️⃣ Install PM2 globally as root (fix EACCES)
+    # 0️⃣ Install PM2 globally as root
     - name: Install PM2 globally
       npm:
         name: pm2
@@ -96,12 +96,19 @@
       ignore_errors: yes
       become_user: "{{ app_user }}"
 
-    # 8️⃣ Start backend using PM2
-    - name: Start backend using PM2
-      command: >
-        pm2 restart backend ||
-        pm2 start dist/index.js --name backend ||
-        pm2 start index.js --name backend
+    # 8️⃣ Start or restart backend using PM2 (robust)
+    - name: Start or restart backend using PM2
+      shell: |
+        pm2 describe backend > /dev/null 2>&1
+        if [ $? -eq 0 ]; then
+            pm2 restart backend --update-env
+        else
+            if [ -f dist/index.js ]; then
+                pm2 start dist/index.js --name backend
+            else
+                pm2 start index.js --name backend
+            fi
+        fi
       args:
         chdir: "{{ app_dir }}"
       become_user: "{{ app_user }}"
