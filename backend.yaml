@@ -57,17 +57,23 @@
         chdir: "{{ app_dir }}"
       become_user: "{{ app_user }}"
 
-    - name: Build TypeScript
+    - name: Ensure TypeScript is installed locally
+      npm:
+        name: typescript
+        path: "{{ app_dir }}"
+        state: present
+      become_user: "{{ app_user }}"
+
+    - name: Build TypeScript to generate server.js
       command: npx tsc
       args:
         chdir: "{{ app_dir }}"
-      ignore_errors: yes
       become_user: "{{ app_user }}"
 
-    - name: Check if server.ts exists
+    - name: Check if compiled server.js exists
       stat:
-        path: "{{ app_dir }}/server.ts"
-      register: server_file
+        path: "{{ app_dir }}/server.js"
+      register: server_js_file
 
     - name: Start or restart backend using PM2
       shell: |
@@ -75,12 +81,13 @@
         if [ $? -eq 0 ]; then
             pm2 restart backend --update-env
         else
-            pm2 start server.ts --name backend
+            pm2 start server.js --name backend
         fi
       args:
         chdir: "{{ app_dir }}"
       become_user: "{{ app_user }}"
-      when: server_file.stat.exists
+      when: server_js_file.stat.exists
+
 
 
 
