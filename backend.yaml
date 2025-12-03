@@ -64,10 +64,10 @@
       ignore_errors: yes
       become_user: "{{ app_user }}"
 
-    - name: Check if dist/index.js exists
+    - name: Check if server.js exists
       stat:
-        path: "{{ app_dir }}/dist/index.js"
-      register: dist_file
+        path: "{{ app_dir }}/server.js"
+      register: server_file
 
     - name: Start or restart backend using PM2
       shell: |
@@ -75,12 +75,12 @@
         if [ $? -eq 0 ]; then
             pm2 restart backend --update-env
         else
-            pm2 start dist/index.js --name backend
+            pm2 start server.js --name backend
         fi
       args:
         chdir: "{{ app_dir }}"
       become_user: "{{ app_user }}"
-      when: dist_file.stat.exists
+      when: server_file.stat.exists
 
 
 
