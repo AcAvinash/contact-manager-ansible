@@ -14,6 +14,12 @@
 
   tasks:
 
+    # 0️⃣ Ensure git is installed
+    - name: Ensure git is installed on target host
+      package:
+        name: git
+        state: present
+
     # 1️⃣ Ensure app user exists
     - name: Check if app user exists
       command: id {{ app_user }}
