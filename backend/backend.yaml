@@ -1,0 +1,38 @@
+- name: Deploy backend (TypeScript)
+  hosts: backend
+  become: true
+
+  vars:
+    jwt_secret_key: "{{ lookup('env', 'JWT_SECRET_KEY') }}"
+    mongo_cloud_url: "{{ lookup('env', 'MONGO_DB_CLOUD_URL') }}"
+    mongo_database: "{{ lookup('env', 'MONGO_DB_DATABASE') }}"
+
+  tasks:
+
+    - name: Copy backend code
+      copy:
+        src: backend/app/
+        dest: /var/www/backend/
+
+    - name: Create .env file
+      template:
+        src: backend/templates/env.j2
+        dest: /var/www/backend/.env
+        mode: "0600"
+
+    - name: Install dependencies
+      command: npm install
+      args:
+        chdir: /var/www/backend/
+
+    - name: Build TypeScript
+      command: npx tsc
+      args:
+        chdir: /var/www/backend/
+
+    - name: Start PM2 with compiled JS
+      command: pm2 restart backend || pm2 start dist/index.js --name backend
+      args:
+        chdir: /var/www/backend/
+
+
