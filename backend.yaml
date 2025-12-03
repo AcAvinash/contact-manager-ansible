@@ -4,11 +4,10 @@
 
   vars:
     app_user: roboshop
-    tmp_clone_dir: /tmp/contact-manager-repo      # TMP folder for entire repo
-    tmp_backend_dir: /tmp/backend_temp           # TMP folder for backend only
-    app_dir: /app/backend
     repo_url: "https://github.com/AlankarSingh27/Contact-Manager.git"
     repo_branch: "main"
+    tmp_dir: /tmp/Contact-Manager               # GitHub repo clone location
+    app_dir: /app                               # final backend deploy folder
     jwt_secret_key: "{{ lookup('env', 'JWT_SECRET_KEY') }}"
     mongo_cloud_url: "{{ lookup('env', 'MONGO_DB_CLOUD_URL') }}"
     mongo_database: "{{ lookup('env', 'MONGO_DB_DATABASE') }}"
@@ -27,32 +26,17 @@
         shell: /bin/bash
       when: out.rc != 0
 
-    # 2️⃣ Clone GitHub repo into TMP
-    - name: Clone entire repo into TMP
+    # 2️⃣ Clone GitHub repo into /tmp
+    - name: Clone GitHub repo into /tmp
       git:
         repo: "{{ repo_url }}"
-        dest: "{{ tmp_clone_dir }}"
+        dest: "{{ tmp_dir }}"
         version: "{{ repo_branch }}"
         force: yes
       become_user: "{{ app_user }}"
 
-    # 3️⃣ Ensure TMP backend staging folder exists
-    - name: Ensure temporary backend folder exists
-      file:
-        path: "{{ tmp_backend_dir }}"
-        state: directory
-        owner: "{{ app_user }}"
-        group: "{{ app_user }}"
-        mode: '0755'
-
-    # 4️⃣ Copy backend subfolder from repo TMP to backend TMP folder
-    - name: Copy backend folder from repo to temp backend folder
-      command: >
-        rsync -a --delete {{ tmp_clone_dir }}/backend/ {{ tmp_backend_dir }}/
-      become_user: "{{ app_user }}"
-
-    # 5️⃣ Ensure final app directory exists
-    - name: Ensure backend app directory exists
+    # 3️⃣ Ensure /app exists
+    - name: Ensure /app directory exists
       file:
         path: "{{ app_dir }}"
         state: directory
@@ -60,13 +44,13 @@
         group: "{{ app_user }}"
         mode: '0755'
 
-    # 6️⃣ Copy backend code from TMP backend to final app directory
-    - name: Copy backend code from TMP backend to app folder
+    # 4️⃣ Copy backend folder content from repo to /app
+    - name: Copy backend code from /tmp/Contact-Manager/backend to /app
       command: >
-        rsync -a --delete {{ tmp_backend_dir }}/ {{ app_dir }}/
+        rsync -a --delete {{ tmp_dir }}/backend/ {{ app_dir }}/
       become_user: "{{ app_user }}"
 
-    # 7️⃣ Create .env file in backend folder
+    # 5️⃣ Create .env file in /app
     - name: Create backend .env file
       template:
         src: env.j2
@@ -75,14 +59,14 @@
         group: "{{ app_user }}"
         mode: "0600"
 
-    # 8️⃣ Install npm dependencies
+    # 6️⃣ Install npm dependencies
     - name: Install backend npm dependencies
       command: npm install
       args:
         chdir: "{{ app_dir }}"
       become_user: "{{ app_user }}"
 
-    # 9️⃣ Build TypeScript if needed
+    # 7️⃣ Build TypeScript (optional)
     - name: Build TypeScript
       command: npx tsc
       args:
@@ -90,7 +74,7 @@
       ignore_errors: yes
       become_user: "{{ app_user }}"
 
-    # 🔟 Start backend using PM2
+    # 8️⃣ Start backend using PM2
     - name: Start backend using PM2
       command: >
         pm2 restart backend ||
