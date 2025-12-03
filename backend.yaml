@@ -64,7 +64,7 @@
       ignore_errors: yes
       become_user: "{{ app_user }}"
 
-    - name: Check if server.js exists
+    - name: Check if server.ts exists
       stat:
         path: "{{ app_dir }}/server.ts"
       register: server_file
@@ -75,7 +75,7 @@
         if [ $? -eq 0 ]; then
             pm2 restart backend --update-env
         else
-            pm2 start server.js --name backend
+            pm2 start server.ts --name backend
         fi
       args:
         chdir: "{{ app_dir }}"
