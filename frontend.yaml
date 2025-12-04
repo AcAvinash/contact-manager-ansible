@@ -6,15 +6,18 @@
     app_user: roboshop
     app_dir: /app
     local_frontend_path: /home/ec2-user/contact-manager/client
+    backend_url: http://backend.acavinash.fun:9000
 
   tasks:
 
+    # 1️⃣ Ensure roboshop user exists
     - name: Ensure roboshop user exists
       user:
         name: "{{ app_user }}"
         shell: /bin/bash
         create_home: yes
 
+    # 2️⃣ Ensure /app directory exists
     - name: Ensure /app directory exists
       file:
         path: "{{ app_dir }}"
@@ -23,50 +26,77 @@
         owner: "{{ app_user }}"
         group: "{{ app_user }}"
 
-    - name: Copy frontend code (without node_modules)
+    # 3️⃣ Copy frontend code (excluding node_modules & build)
+    - name: Copy frontend code to server
       copy:
         src: "{{ local_frontend_path }}/"
         dest: "{{ app_dir }}/"
         owner: "{{ app_user }}"
         group: "{{ app_user }}"
-        mode: "0755"
+        mode: '0755'
         exclude:
           - node_modules
           - build
 
-    - name: Install Node.js repo
-      shell: curl -fsSL https://rpm.nodesource.com/setup_18.x | bash -
+    # 4️⃣ Install Node.js repo
+    - name: Add NodeSource Node.js 18 repo
+      ansible.builtin.shell: curl -fsSL https://rpm.nodesource.com/setup_18.x | bash -
+      args:
+        warn: false
 
-
+    # 5️⃣ Install Node.js
     - name: Install Node.js
       yum:
         name: nodejs
         state: present
 
+    # 6️⃣ Install npm dependencies
     - name: Install npm dependencies
       command: npm install
       args:
         chdir: "{{ app_dir }}"
       become_user: "{{ app_user }}"
 
+    # 7️⃣ Build React App
     - name: Build React App
       command: npm run build
       args:
         chdir: "{{ app_dir }}"
       become_user: "{{ app_user }}"
 
+    # 8️⃣ Install Nginx
     - name: Install Nginx
       yum:
         name: nginx
         state: present
 
-    - name: Copy Nginx template
-      template:
-        src: frontend.j2
+    # 9️⃣ Configure Nginx for React + Backend Reverse Proxy
+    - name: Configure Nginx
+      copy:
         dest: /etc/nginx/conf.d/frontend.conf
+        content: |
+          server {
+              listen 80;
+              server_name frontend.acavinash.fun;
 
+              root {{ app_dir }}/build;
+              index index.html;
+
+              location / {
+                  try_files $uri /index.html;
+              }
+
+              location /api/ {
+                  proxy_pass {{ backend_url }}/;
+                  proxy_set_header Host $host;
+                  proxy_set_header X-Real-IP $remote_addr;
+              }
+          }
+
+    # 🔟 Enable & restart Nginx
     - name: Enable & Restart Nginx
       service:
         name: nginx
         state: restarted
         enabled: true
+
