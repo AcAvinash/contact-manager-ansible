@@ -1,0 +1,55 @@
+- name: Deploy React Frontend
+  hosts: frontend
+  become: true
+
+  vars:
+    app_dir: /app
+    local_frontend_path: /home/ec2-user/Contact-Manager/frontend
+
+  tasks:
+
+    - name: Ensure /app directory exists
+      file:
+        path: "{{ app_dir }}"
+        state: directory
+        mode: '0755'
+
+    - name: Copy frontend code to server
+      copy:
+        src: "{{ local_frontend_path }}/"
+        dest: "{{ app_dir }}/"
+        mode: '0755'
+
+    - name: Install Node.js repo
+      shell: curl -fsSL https://rpm.nodesource.com/setup_18.x | bash -
+
+    - name: Install Node.js
+      yum:
+        name: nodejs
+        state: present
+
+    - name: Install npm dependencies
+      command: npm install
+      args:
+        chdir: "{{ app_dir }}"
+
+    - name: Build React App
+      command: npm run build
+      args:
+        chdir: "{{ app_dir }}"
+
+    - name: Install Nginx
+      yum:
+        name: nginx
+        state: present
+
+    - name: Copy Nginx template
+      template:
+        src: frontend.j2
+        dest: /etc/nginx/conf.d/frontend.conf
+
+    - name: Enable & Restart Nginx
+      service:
+        name: nginx
+        state: restarted
+        enabled: true
