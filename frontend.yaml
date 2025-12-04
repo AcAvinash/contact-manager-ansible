@@ -5,7 +5,7 @@
   vars:
     app_user: roboshop
     app_dir: /app
-    local_frontend_path: /home/ec2-user/Contact-Manager/client
+    local_frontend_path: /home/ec2-user/contact-manager/client
 
   tasks:
 
