@@ -10,14 +10,24 @@
 
   tasks:
 
-    # 1️⃣ Ensure roboshop user exists
+    # 0️⃣ Create swap file (2 GB) to avoid memory issues during build
+    - name: Create swap file
+      ansible.builtin.shell: |
+        dd if=/dev/zero of=/swapfile bs=1M count=2048
+        chmod 600 /swapfile
+        mkswap /swapfile
+        swapon /swapfile
+      args:
+        warn: false
+
+    #  Ensure roboshop user exists
     - name: Ensure roboshop user exists
       user:
         name: "{{ app_user }}"
         shell: /bin/bash
         create_home: yes
 
-    # 2️⃣ Ensure /app directory exists
+    #  Ensure /app directory exists
     - name: Ensure /app directory exists
       file:
         path: "{{ app_dir }}"
@@ -26,7 +36,7 @@
         owner: "{{ app_user }}"
         group: "{{ app_user }}"
 
-    # 3️⃣ Copy frontend code (excluding node_modules & build)
+    #  Copy frontend code (excluding node_modules & build)
     - name: Copy frontend code to server
       copy:
         src: "{{ local_frontend_path }}/"
@@ -38,49 +48,49 @@
           - node_modules
           - build
 
-    # 4️⃣ Install Node.js repo
+    #  Install Node.js repo
     - name: Add NodeSource Node.js 18 repo
       ansible.builtin.shell: curl -fsSL https://rpm.nodesource.com/setup_18.x | bash -
 
-    # 5️⃣ Install Node.js
+    #  Install Node.js
     - name: Install Node.js
       yum:
         name: nodejs
         state: present
 
-    # 6️⃣ Remove old node_modules if exists
+    #  Remove old node_modules if exists
     - name: Remove old node_modules
       file:
         path: "{{ app_dir }}/node_modules"
         state: absent
       become_user: "{{ app_user }}"
 
-    # 7️⃣ Clean npm cache
+    #  Clean npm cache
     - name: Clean npm cache
       command: npm cache clean --force
       become_user: "{{ app_user }}"
 
-    # 8️⃣ Install npm dependencies
+    #  Install npm dependencies
     - name: Install npm dependencies
       command: npm install
       args:
         chdir: "{{ app_dir }}"
       become_user: "{{ app_user }}"
 
-    # 9️⃣ Build React App
+    #  Build React App
     - name: Build React App
       command: npm run build
       args:
         chdir: "{{ app_dir }}"
       become_user: "{{ app_user }}"
 
-    # 🔟 Install Nginx
+    #  Install Nginx
     - name: Install Nginx
       yum:
         name: nginx
         state: present
 
-    # 1️⃣1️⃣ Configure Nginx for React + Backend Reverse Proxy
+    #  Configure Nginx for React + Backend Reverse Proxy
     - name: Configure Nginx
       copy:
         dest: /etc/nginx/conf.d/frontend.conf
@@ -103,7 +113,7 @@
               }
           }
 
-    # 1️⃣2️⃣ Enable & restart Nginx
+    #  Enable & restart Nginx
     - name: Enable & Restart Nginx
       service:
         name: nginx
