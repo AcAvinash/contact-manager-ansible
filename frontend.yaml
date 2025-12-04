@@ -48,27 +48,39 @@
         name: nodejs
         state: present
 
-    # 6️⃣ Install npm dependencies
+    # 6️⃣ Remove old node_modules if exists
+    - name: Remove old node_modules
+      file:
+        path: "{{ app_dir }}/node_modules"
+        state: absent
+      become_user: "{{ app_user }}"
+
+    # 7️⃣ Clean npm cache
+    - name: Clean npm cache
+      command: npm cache clean --force
+      become_user: "{{ app_user }}"
+
+    # 8️⃣ Install npm dependencies
     - name: Install npm dependencies
       command: npm install
       args:
         chdir: "{{ app_dir }}"
       become_user: "{{ app_user }}"
 
-    # 7️⃣ Build React App
+    # 9️⃣ Build React App
     - name: Build React App
       command: npm run build
       args:
         chdir: "{{ app_dir }}"
       become_user: "{{ app_user }}"
 
-    # 8️⃣ Install Nginx
+    # 🔟 Install Nginx
     - name: Install Nginx
       yum:
         name: nginx
         state: present
 
-    # 9️⃣ Configure Nginx for React + Backend Reverse Proxy
+    # 1️⃣1️⃣ Configure Nginx for React + Backend Reverse Proxy
     - name: Configure Nginx
       copy:
         dest: /etc/nginx/conf.d/frontend.conf
@@ -91,10 +103,9 @@
               }
           }
 
-    # 🔟 Enable & restart Nginx
+    # 1️⃣2️⃣ Enable & restart Nginx
     - name: Enable & Restart Nginx
       service:
         name: nginx
         state: restarted
         enabled: true
-
