@@ -41,8 +41,6 @@
     # 4️⃣ Install Node.js repo
     - name: Add NodeSource Node.js 18 repo
       ansible.builtin.shell: curl -fsSL https://rpm.nodesource.com/setup_18.x | bash -
-      args:
-        warn: false
 
     # 5️⃣ Install Node.js
     - name: Install Node.js
