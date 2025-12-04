@@ -36,8 +36,7 @@
 
     - name: Install Node.js repo
       shell: curl -fsSL https://rpm.nodesource.com/setup_18.x | bash -
-      args:
-        warn: false
+
 
     - name: Install Node.js
       yum:
