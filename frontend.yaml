@@ -12,7 +12,7 @@
     - name: Ensure roboshop user exists
       user:
         name: "{{ app_user }}"
-        shell: /bin/bash"
+        shell: /bin/bash
         create_home: yes
 
     - name: Ensure /app directory exists
@@ -23,16 +23,21 @@
         owner: "{{ app_user }}"
         group: "{{ app_user }}"
 
-    - name: Copy frontend code to server
+    - name: Copy frontend code (without node_modules)
       copy:
         src: "{{ local_frontend_path }}/"
         dest: "{{ app_dir }}/"
         owner: "{{ app_user }}"
         group: "{{ app_user }}"
-        mode: '0755'
+        mode: "0755"
+        exclude:
+          - node_modules
+          - build
 
     - name: Install Node.js repo
       shell: curl -fsSL https://rpm.nodesource.com/setup_18.x | bash -
+      args:
+        warn: false
 
     - name: Install Node.js
       yum:
@@ -66,4 +71,3 @@
         name: nginx
         state: restarted
         enabled: true
-
